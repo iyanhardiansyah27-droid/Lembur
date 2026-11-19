@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="id"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#142d25"><title>Kalkulator Upah Lembur</title>
+<style>
+:root{--green:#173b30;--gold:#d6ae62;--bg:#f4f6f2;--ink:#1d2923;--muted:#68756e;--line:#dfe6df}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);font-family:Inter,system-ui,-apple-system,Segoe UI,Arial,sans-serif;color:var(--ink)}
+header{background:linear-gradient(120deg,#102b22,#245443);color:#fff;padding:28px 18px 32px;border-bottom:4px solid var(--gold)}
+.wrap{max-width:1200px;margin:auto}header .eyebrow{color:#e7c77f;text-transform:uppercase;letter-spacing:2px;font-size:11px;font-weight:800}h1{font-size:clamp(24px,4vw,34px);margin:8px 0}header p{margin:0;color:#dce8df;font-size:14px}
+main{max-width:1200px;margin:22px auto;padding:0 16px 45px}.panel{background:white;border:1px solid var(--line);border-radius:15px;padding:18px;margin-bottom:16px;box-shadow:0 4px 18px #1b39200a}
+.panel h2{font-size:17px;margin:0 0 15px;color:var(--green)}.fields{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+label{font-size:12px;font-weight:700;color:var(--muted);display:block;margin-bottom:6px}input,select{font:inherit;color:var(--ink);border:1px solid #d5ded6;border-radius:9px;padding:10px;width:100%;background:#fff;min-width:0}input:focus,select:focus{outline:2px solid #b9d4c4;border-color:#54816b}
+.summary{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:16px}.metric{background:#fff;border:1px solid var(--line);border-radius:13px;padding:16px}.metric small{color:var(--muted);font-weight:700}.metric strong{display:block;font-size:clamp(18px,3vw,25px);color:var(--green);margin-top:7px}
+.actions{display:flex;gap:9px;flex-wrap:wrap;margin:12px 0}.btn{border:0;border-radius:9px;padding:10px 14px;font-weight:750;cursor:pointer;background:var(--green);color:white}.btn.alt{background:#e8eee9;color:var(--green)}.btn.gold{background:#d6ae62;color:#18281f}
+.tablewrap{overflow:auto;border:1px solid var(--line);border-radius:11px}table{border-collapse:collapse;width:100%;min-width:1050px;font-size:12px}th{background:#edf3ee;color:#244638;text-align:left;position:sticky;top:0;z-index:1}td,th{padding:9px 8px;border-bottom:1px solid var(--line);white-space:nowrap}td.num,th.num{text-align:right}td input,td select{padding:7px 6px;font-size:12px;min-width:90px}td .hours{width:72px;min-width:72px;text-align:right}tr.weekend{background:#fffaf0}tr.holiday{background:#fff2ed}.money{font-variant-numeric:tabular-nums;text-align:right}.totalrow{font-weight:800;background:#eaf1eb}.note{font-size:12px;color:var(--muted);line-height:1.65}.tag{font-size:10px;padding:3px 6px;border-radius:5px;background:#f4e8cc;color:#76551c}
+@media(max-width:700px){.fields{grid-template-columns:repeat(2,minmax(0,1fr))}.summary{grid-template-columns:1fr}.panel{padding:14px}main{padding:0 10px 30px}}
+@media print{header{padding:15px;background:#173b30!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}.actions,.no-print{display:none!important}main{margin:8px auto;padding:0}.panel,.metric{box-shadow:none;break-inside:avoid}.tablewrap{overflow:visible}table{min-width:0;font-size:9px}td,th{padding:5px 3px}td input,td select{border:0;padding:0;appearance:none}body{background:#fff}}
+</style></head>
+<body>
+<header><div class="wrap"><div class="eyebrow">Administrasi • Penggajian</div><h1>Perhitungan Upah Lembur</h1><p>Kalkulator lembur karyawan · Acuan rumus pada file Excel (PP No. 35 Tahun 2021)</p></div></header>
+<main>
+<section class="panel"><h2>Data Karyawan & Penggajian</h2><div class="fields">
+<div><label>Nama karyawan</label><input id="name" value="Hardiansyah Rukmana"></div>
+<div><label>Mulai periode</label><input type="date" id="start" value="2026-10-21"></div>
+<div><label>Akhir periode</label><input type="date" id="end" value="2026-11-20"></div>
+<div><label>Gaji pokok (Rp)</label><input type="number" id="salary" value="5986759" min="0"></div>
+<div><label>Tunjangan tetap (Rp)</label><input type="number" id="allowance" value="0" min="0"></div>
+<div><label>Total upah sebulan</label><input id="monthly" readonly></div>
+<div><label>Upah per jam (1/173)</label><input id="hourly" readonly></div>
+<div><label>Peraturan pengali</label><input value="Hari kerja & akhir pekan" readonly></div>
+</div></section>
+<section class="summary">
+<div class="metric"><small>Total jam lembur aktual</small><strong id="sumHours">0 jam</strong></div>
+<div class="metric"><small>Total jam pengali</small><strong id="sumWeighted">0 jam</strong></div>
+<div class="metric"><small>Total upah lembur</small><strong id="sumPay">Rp0</strong></div>
+</section>
+<section class="panel"><h2>Rincian Lembur Harian</h2>
+<div class="actions no-print"><button class="btn" onclick="addRow()">＋ Tambah tanggal</button><button class="btn gold" onclick="saveState(true)">Simpan data</button><span id="saveStatus" class="note" aria-live="polite">Data tersimpan otomatis di perangkat ini.</span><button class="btn alt" onclick="downloadCSV()">Unduh CSV</button><button class="btn gold" onclick="window.print()">Cetak / Simpan PDF</button><button class="btn alt" onclick="resetRows()">Kembalikan data awal</button></div>
+<div class="tablewrap"><table><thead><tr>
+<th>No</th><th>Tanggal</th><th>Hari</th><th>Shift</th><th>Jam lembur</th><th>Jenis hari</th>
+<th class="num">Jam 1 (1,5x)</th><th class="num">Jam 2–4 (2x)</th><th class="num">Jam 1–7 (2x)</th><th class="num">Jam 8 (3x)</th><th class="num">Jam 9+ (4x)</th><th class="num">Jam pengali</th><th class="num">Upah lembur</th>
+</tr></thead><tbody id="body"></tbody><tfoot id="foot"></tfoot></table></div>
+<p class="note">Masukkan jam lembur aktual pada kolom “Jam lembur”. Sabtu/Minggu dan hari libur menggunakan pengali akhir pekan/libur. Centang jenis hari “Libur” untuk menerapkan pengali tersebut pada tanggal lain. Hari Minggu yang ditandai LIBUR pada file sumber tetap dimasukkan sebagai hari libur dengan jam awal 0.</p>
+</section>
+<section class="panel"><h2>Ketentuan perhitungan</h2><div class="note">
+<strong>Hari kerja (Senin–Jumat):</strong> jam pertama × 1,5; jam ke-2 sampai ke-4 × 2,0.<br>
+<strong>Sabtu/Minggu/hari libur:</strong> jam ke-1 sampai ke-7 × 2,0; jam ke-8 × 3,0; jam ke-9 dan seterusnya × 4,0.<br>
+Upah per jam = (gaji pokok + tunjangan tetap) ÷ 173. Total upah lembur = total jam pengali × upah per jam.
+</div></section>
+</main>
+<script>
+const initial=[{"date": "2026-10-21", "shift": " Longshift 2", "hours": 4.0, "holiday": false}, {"date": "2026-10-22", "shift": " Longshift 2", "hours": 4.0, "holiday": false}, {"date": "2026-10-23", "shift": " Longshift 2", "hours": 4.0, "holiday": false}, {"date": "2026-10-24", "shift": " Longshift 2", "hours": 12.0, "holiday": false}, {"date": "2026-10-25", "shift": "LIBUR", "hours": 0, "holiday": true}, {"date": "2026-10-26", "shift": "Shift 1", "hours": 0.0, "holiday": false}, {"date": "2026-10-27", "shift": "Shift 1", "hours": 0.0, "holiday": false}, {"date": "2026-10-28", "shift": "Shift 1", "hours": 0.0, "holiday": false}, {"date": "2026-10-29", "shift": "Shift 1", "hours": 0.0, "holiday": false}, {"date": "2026-10-30", "shift": "Shift 1", "hours": 0.0, "holiday": false}, {"date": "2026-10-31", "shift": "Longshift 1", "hours": 0.0, "holiday": false}, {"date": "2026-11-01", "shift": "Shift 1", "hours": 0.0, "holiday": false}, {"date": "2026-11-02", "shift": " Shift 3", "hours": 0.0, "holiday": false}, {"date": "2026-11-03", "shift": " Shift 3", "hours": 0.0, "holiday": false}, {"date": "2026-11-04", "shift": " Shift 3", "hours": 0.0, "holiday": false}, {"date": "2026-11-05", "shift": " Shift 3", "hours": 0.0, "holiday": false}, {"date": "2026-11-06", "shift": " Shift 3", "hours": 0.0, "holiday": false}, {"date": "2026-11-07", "shift": " Shift 3", "hours": 0.0, "holiday": false}, {"date": "2026-11-08", "shift": " Shift 3", "hours": 0.0, "holiday": false}, {"date": "2026-11-09", "shift": " Shift 2", "hours": 0.0, "holiday": false}, {"date": "2026-11-10", "shift": " Shift 2", "hours": 0.0, "holiday": false}, {"date": "2026-11-11", "shift": " Shift 2", "hours": 0.0, "holiday": false}, {"date": "2026-11-12", "shift": " Shift 2", "hours": 0.0, "holiday": false}, {"date": "2026-11-13", "shift": " Shift 2", "hours": 0.0, "holiday": false}, {"date": "2026-11-14", "shift": " Shift 2", "hours": 0.0, "holiday": false}, {"date": "2026-11-15", "shift": " Shift 2", "hours": 0.0, "holiday": false}, {"date": "2026-11-16", "shift": "Shift 1", "hours": 0.0, "holiday": false}, {"date": "2026-11-17", "shift": "Shift 1", "hours": 0.0, "holiday": false}, {"date": "2026-11-18", "shift": "Shift 1", "hours": 0.0, "holiday": false}, {"date": "2026-11-19", "shift": "Shift 1", "hours": 0.0, "holiday": false}, {"date": "2026-11-20", "shift": "Longshift 1", "hours": 0.0, "holiday": false}];
+let rows=initial.map(x=>({...x}));
+const fmt=n=>'Rp'+Math.round(n||0).toLocaleString('id-ID');
+const num=id=>Number(document.getElementById(id).value)||0;
+const STORAGE_KEY='kalkulator_upah_lembur_v1';
+function saveState(showMessage=false){
+ try{
+  const state={rows,name:document.getElementById('name').value,start:document.getElementById('start').value,end:document.getElementById('end').value,salary:document.getElementById('salary').value,allowance:document.getElementById('allowance').value};
+  localStorage.setItem(STORAGE_KEY,JSON.stringify(state));
+  const el=document.getElementById('saveStatus');
+  if(el)el.textContent=showMessage?'✓ Data berhasil disimpan di perangkat ini.':'✓ Tersimpan otomatis';
+ }catch(err){
+  const el=document.getElementById('saveStatus');
+  if(el)el.textContent='Penyimpanan browser tidak tersedia. Unduh CSV sebagai cadangan.';
+ }
+}
+function loadState(){
+ try{
+  const raw=localStorage.getItem(STORAGE_KEY);
+  if(!raw)return;
+  const state=JSON.parse(raw);
+  if(Array.isArray(state.rows))rows=state.rows;
+  ['name','start','end','salary','allowance'].forEach(id=>{if(state[id]!==undefined)document.getElementById(id).value=state[id]});
+ }catch(err){console.warn('Data tersimpan tidak dapat dibaca',err)}
+}
+const dayNames=['Minggu','Senin','Selasa','Rabu','Kamis','Jumat','Sabtu'];
+function calc(r){
+ const d=new Date(r.date+'T12:00:00'), dow=d.getDay(), h=Math.max(0,Number(r.hours)||0);
+ const weekend=dow===0||dow===6||r.holiday;
+ let a=0,b=0,c=0,e=0,f=0;
+ if(weekend){c=Math.min(h,7)*2;e=h>=8?3:0;f=h>8?(h-8)*4:0}
+ else{a=h>=1?1.5:0;b=h>1?Math.min(h-1,3)*2:0}
+ const weighted=a+b+c+e+f, hourly=(num('salary')+num('allowance'))/173;
+ return {dow,weekend,a,b,c,e,f,weighted,pay:weighted*hourly};
+}
+function render(){
+ const hourly=(num('salary')+num('allowance'))/173;
+ document.getElementById('monthly').value=fmt(num('salary')+num('allowance'));
+ document.getElementById('hourly').value=fmt(hourly);
+ const body=document.getElementById('body');body.innerHTML='';
+ let totals={hours:0,weighted:0,pay:0,a:0,b:0,c:0,e:0,f:0};
+ rows.sort((a,b)=>a.date.localeCompare(b.date));
+ rows.forEach((r,i)=>{
+  const c=calc(r);totals.hours+=Number(r.hours)||0;totals.weighted+=c.weighted;totals.pay+=c.pay;
+  ['a','b','c','e','f'].forEach(k=>totals[k]+=c[k]);
+  const tr=document.createElement('tr');tr.className=r.holiday?'holiday':c.weekend?'weekend':'';
+  tr.innerHTML=`<td>${i+1}</td>
+  <td><input type="date" value="${r.date}" data-i="${i}" data-k="date"></td>
+  <td>${dayNames[c.dow]}</td>
+  <td><select data-i="${i}" data-k="shift"><option ${r.shift==='Shift 1'?'selected':''}>Shift 1</option><option ${r.shift==='Shift 2'?'selected':''}>Shift 2</option><option ${r.shift==='Shift 3'?'selected':''}>Shift 3</option><option ${r.shift==='Longshift 1'?'selected':''}>Longshift 1</option><option ${r.shift==='Longshift 2'?'selected':''}>Longshift 2</option></select></td>
+  <td><input class="hours" type="number" min="0" step=".5" value="${r.hours}" data-i="${i}" data-k="hours"></td>
+  <td><select data-i="${i}" data-k="holiday"><option value="false" ${!r.holiday?'selected':''}>Hari biasa</option><option value="true" ${r.holiday?'selected':''}>Libur</option></select></td>
+  <td class="money">${c.a.toFixed(2)}</td><td class="money">${c.b.toFixed(2)}</td><td class="money">${c.c.toFixed(2)}</td><td class="money">${c.e.toFixed(2)}</td><td class="money">${c.f.toFixed(2)}</td><td class="money">${c.weighted.toFixed(2)}</td><td class="money">${fmt(c.pay)}</td>`;
+  body.appendChild(tr);
+ });
+ document.getElementById('foot').innerHTML=`<tr class="totalrow"><td colspan="4">TOTAL</td><td>${totals.hours.toFixed(2)}</td><td>—</td><td class="money">${totals.a.toFixed(2)}</td><td class="money">${totals.b.toFixed(2)}</td><td class="money">${totals.c.toFixed(2)}</td><td class="money">${totals.e.toFixed(2)}</td><td class="money">${totals.f.toFixed(2)}</td><td class="money">${totals.weighted.toFixed(2)}</td><td class="money">${fmt(totals.pay)}</td></tr>`;
+ document.getElementById('sumHours').textContent=totals.hours.toFixed(2)+' jam';
+ document.getElementById('sumWeighted').textContent=totals.weighted.toFixed(2)+' jam';
+ document.getElementById('sumPay').textContent=fmt(totals.pay);
+ document.getElementById('name').value=document.getElementById('name').value;
+}
+document.getElementById('body').addEventListener('change',e=>{const t=e.target;if(t.dataset.i===undefined)return;const r=rows[Number(t.dataset.i)],k=t.dataset.k;r[k]=k==='holiday'?t.value==='true':k==='hours'?Number(t.value)||0:t.value;render()});
+['salary','allowance'].forEach(id=>document.getElementById(id).addEventListener('input',render));
+['name','start','end'].forEach(id=>document.getElementById(id).addEventListener('input',()=>saveState()));
+function addRow(){const last=rows.length?new Date(rows[rows.length-1].date+'T12:00:00'):new Date();last.setDate(last.getDate()+1);rows.push({date:last.toISOString().slice(0,10),shift:'Shift 1',hours:0,holiday:false});render()}
+function resetRows(){rows=initial.map(x=>({...x}));document.getElementById('name').value='Hardiansyah Rukmana';document.getElementById('salary').value=5986759;document.getElementById('allowance').value=0;render()}
+function downloadCSV(){
+ const headers=['No','Tanggal','Hari','Shift','Jam Lembur','Jenis Hari','Jam 1 1.5x','Jam 2-4 2x','Jam 1-7 2x','Jam 8 3x','Jam 9+ 4x','Total Jam Pengali','Upah Lembur'];
+ const data=rows.map((r,i)=>{const c=calc(r);return [i+1,r.date,dayNames[c.dow],r.shift,r.hours,c.weekend?'Libur/Akhir pekan':'Hari kerja',c.a,c.b,c.c,c.e,c.f,c.weighted,Math.round(c.pay)]});
+ const csv=[headers,...data].map(a=>a.map(v=>'"'+String(v??'').replaceAll('"','""')+'"').join(',')).join('\r\n');
+ const blob=new Blob(['\ufeff'+csv],{type:'text/csv;charset=utf-8;'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='Laporan_Upah_Lembur.csv';a.click();URL.revokeObjectURL(url);
+}
+loadState();
+render();
+</script></body></html>
